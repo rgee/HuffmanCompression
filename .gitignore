@@ -1,0 +1,12 @@
+*.bin
+*.obj
+*.suo
+*.cache
+*~
+*.swp
+*.user
+*.ncb
+*.pdb
+*.sdf
+*.opensdf
+*.exe
