@@ -17,7 +17,7 @@ int HuffmanProcessor::MaxTreeDepth(Node* root) const
 
 void HuffmanProcessor::WriteBytes(Node* root) const
 {
-
+	
 }
 
 void HuffmanProcessor::Compress(const char* output_filename)
