@@ -1,66 +1,85 @@
 #include "HuffmanProcessor.h"
 
-int HuffmanProcessor::MaxTreeDepth(Node* root) const
+void HuffmanProcessor::WriteBit(bool bit)
 {
-	int rightDepth, leftDepth;
-	if(root->rightChild)
+	bitBuffer |= bit << numBits;
+	if(++numBits < 8)
 	{
-		rightDepth = MaxTreeDepth(root->rightChild);
-	}
-	if(root->leftChild)
-	{
-		leftDepth = MaxTreeDepth(root->leftChild);
+		return;
 	}
 
-	return std::max(rightDepth, leftDepth);
+	output.put(bitBuffer);
+	bitBuffer = 0;
+	numBits = 0;
 }
 
-void HuffmanProcessor::WriteBytes(Node* root) const
+void HuffmanProcessor::FlushBits()
 {
-	
+	if(numBits)
+	{
+		output.put(bitBuffer);
+	}
+	bitBuffer = 0;
+	numBits = 0;
+}
+
+void HuffmanProcessor::WriteHeader()
+{
+}
+
+void HuffmanProcessor::AccumulateBytes(Node* root)
+{
+	if(!root->leftChild && !root->rightChild)
+	{
+		return;
+	}
+
+	if(root->leftChild)
+	{
+		WriteBit(0);
+		AccumulateBytes(root->leftChild);
+	}
+
+	if(root->rightChild)
+	{
+		WriteBit(1);
+		AccumulateBytes(root->rightChild);
+	}
+
 }
 
 void HuffmanProcessor::Compress(const char* output_filename)
 {
-	map<char, int>::iterator it;
+	// Build the frequency table
 	for(int i = 0; i < size; i++)
 	{
-		it = frequencies.find(buffer[i]);
-		if(it == frequencies.end())
+		frequencyTable[buffer[i]]++;
+	}
+
+	for(int i = 0; i < 256; i++)
+	{
+		if(frequencyTable[i])
 		{
-			frequencies.insert(pair<char, int>(buffer[i], 1));
-		} 
-		else
-		{
-			it->second = it->second + 1;
+			nodes.push_back(new Node((unsigned char)i, frequencyTable[i]));
 		}
 	}
 
-	for(it = frequencies.begin(); it != frequencies.end(); it++)
-	{
-		if((*it).second > 0)
-		{
-			nodes.push_back(new Node((*it).first, (*it).second));
-		}
+	sort(nodes.begin(), nodes.end(), NodeComparator);
 
-		/* Sort on frequency */
-		sort(nodes.begin(), nodes.end(), NodeComparator);
-	}
-	while(nodes.size() > 1)
-	{
-		Node* newParent = new Node();
-		newParent->SetChildren((*(nodes.end() - 1)), (*(nodes.end() - 2)));
-		nodes.push_back(newParent);
-
+	while(nodes.size() > 1) {
+		Node* lowest = new Node();
+		Node* secondLowest = new Node();
+		lowest = *(nodes.end() - 1);
+		secondLowest = *(nodes.end() - 2);
 		nodes.erase(nodes.end() - 2, nodes.end());
+		Node* newParent = new Node();
+		newParent->SetChildren(lowest, secondLowest);
+		newParent->frequency = lowest->frequency + secondLowest->frequency;
+		nodes.push_back(newParent);
 	}
-
-	Node* root = nodes.front();
-	int maxDepth = MaxTreeDepth(root);
-	bitBuffer = new char[maxDepth];
-
-	
 
 	output = ofstream((output_filename ? output_filename : filename), ofstream::binary);
-	output.write(buffer, size);
+
+	AccumulateBytes(nodes.front());
+	FlushBits();
 }

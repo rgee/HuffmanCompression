@@ -7,19 +7,6 @@
 #include <limits.h>
 using namespace std;
 
-/* Bit operator macros */
-
-/* Generate a bit mask to access bit b */
-#define BITMASK(b) (1 << ( (b) % CHAR_BIT))
-
-#define BITSLOT(b) ( (b) / CHAR_BIT)
-
-/* Set the bit at position b of a to 1 */
-#define BITSET(a, b) ( (a)[BITSLOT(b)] |= BITMASK(b) )
-
-/* Set the bit at position b of a to 0 */
-#define BITCLEAR(a, b) ( (a)[BITSLOT(b)] &= ~BITMASK(b) )
-
 
 class HuffmanProcessor
 {
@@ -35,22 +22,25 @@ public:
 
 
 		file.seekg(0, ifstream::end);
-		/* Read the entire file into memory */
-		/* Maybe we should perform some kind of staggered loading
-		   and processing if the file is gargantuan. Maybe 32mb chunks
-		   or something */
+
+		// Read the entire file into memory
 		size = (int)file.tellg();
 
-		buffer = new char[size];
+		buffer = new unsigned char[size];
 		file.seekg(0);
-		file.read(buffer, size);
+		file.read((char*)buffer, size);
 		file.close();
+
+		frequencyTable = (int*)	calloc(256, sizeof(int));
+
+		bitBuffer = 0;
+		numBits = 0;
 	}
 
 	~HuffmanProcessor() 
 	{
 		delete[] buffer;
-		delete[] bitBuffer;
+		output.close();
 	}
 
 	void Compress(const char* output_filename = NULL);
@@ -58,34 +48,29 @@ private:
 	const char* filename;
 	int size;
 	ofstream output;
-	char* buffer;
+	unsigned char* buffer;
 
-	/* A map that stores the frequency of each byte pattern
-	   in the file */
-	map<char, int> frequencies;
+	// There are only 256 possible values for unsigned
+	// chars, so we just index by that value and store the count
+	// at its corresponding location.
+	int* frequencyTable;
 
 
-	/* Private Class for intneral tree data structure */
-
+	// Private Class for intneral tree data structure
+	// Leaves have null children
 	class Node
 	{
 	public:
-		char data;
+		unsigned char data;
 		int frequency;
 		Node* leftChild;
 		Node* rightChild;
 
-		Node(char data, int frequency)
+		Node(unsigned char data, int frequency)
 			: data(data),
 			  frequency(frequency),
 			  leftChild(NULL),
 			  rightChild(NULL)
-		{}
-		Node(char data, int frequency, Node* leftChild, Node* rightChild)
-			: data(data),
-			  frequency(frequency),
-			  leftChild(leftChild),
-			  rightChild(rightChild)
 		{}
 
 		Node()
@@ -117,28 +102,36 @@ private:
 
 	};
 
-	/* Node sorting functor */
+	// Node sorting functor
 	struct functorClass {
 		bool operator() (Node* i, Node* j) { return i->frequency < j->frequency; }
 		bool operator() (Node i, Node j) { return i.frequency < j.frequency; }
 	} NodeComparator;
 
-	/* The intermediate representation of the nodes in the tree
-	   before processing / arrangement / sorting */
+	// The intermediate representation of the nodes in the tree
+	// before processing / arrangement / sorting
 	vector<Node*> nodes;
 
-	/* Collection of visited nodes for depth-first traversal */
-	set<Node*> visited;
+	// The buffer to hold bits until we have enough to 
+	// make a full byte.
+	unsigned char bitBuffer;
 
-	char* bitBuffer;
+	// The number of unwritten bits in the buffer
+	int numBits;
 
-	/* Returns the max depth of the tree */
-	int MaxTreeDepth(Node* root) const;
+	// Accumulate individual bytes back to the file in the following pattern:
+	// Traversing the frequency tree in depth-first order, we write paths from
+	// the root as strings of bits where 0 represents a left branch and 1
+	// represents a right branch.
+	void AccumulateBytes(Node* root);
 
-	/* Write individual bytes back to the file in the following pattern:
-	   Traversing the frequency tree in depth-first order, we write paths from
-	   the root as strings of bits where 0 represents a left branch and 1
-	   represents a right branch. */
-	void WriteBytes(Node* root) const;
+	// Write bytes in the appropriate size to the file
+	void WriteBit(bool bit);
+
+	// Flush any remaining bits after writing to the file
+	void FlushBits();
+
+	// Write the tree as a file header
+	void WriteHeader();
 };
 
