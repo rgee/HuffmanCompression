@@ -123,13 +123,26 @@ void HuffmanProcessor::Compress(char* output_filename)
 
     std::vector<bool> none;
     AccumulateBytes(root, none);
-    WriteToFile();
 
+    output = ofstream((output_file ? output_file : filename), ios::binary);
+
+
+    short begin = 0x4D4D;
+
+    output.write((char*)&begin, sizeof(short));
+    WriteTree(root);
+
+    short end = 0x0FFF;
+    //output.write((char*)&end, sizeof(short));
+    
+    //WriteToFile();
+
+    output.close();
 }
 
 void HuffmanProcessor::WriteToFile()
 {
-    output = ofstream((output_file ? output_file : filename), ofstream::binary);
+    
     int counter = 0;
     std::vector<bool> code;
     for(int curr_byte = 0; curr_byte < size; ++curr_byte)
@@ -158,4 +171,97 @@ void HuffmanProcessor::WriteToFile()
         }
     }
 
+}
+
+/**
+ * The Tree begins with a single short: 0x4D4D
+ *
+ * Nodes are laid out in the following format:
+ * Node Header (short) 2 bytes
+ *    Non-Null Node: 0x0BAB
+ *    Null Node: 0x1ABAB
+ * Node Data (unsigned char) 1 byte
+ * Node Frequency (int) 4 bytes
+ *
+ * The tree ends with a single short: 0x0FFF
+ */
+void HuffmanProcessor::WriteTree(Node* root)
+{
+    short non_null_header = 0x0BAB;
+    if(root->leftChild == NULL && root->rightChild == NULL)
+    {
+        // Node header
+        output.write((char*)&non_null_header, sizeof(non_null_header));
+
+        // Data
+        output.write((char*)&root->data, sizeof(root->data));
+        output.write((char*)&root->frequency, sizeof(root->frequency));
+
+        // Sentinel children
+        short null_header = 0x1ABAB;
+        output.write((char*)&null_header, sizeof(short));
+        output.write((char*)&null_header, sizeof(short));
+        
+        return;
+    }
+
+    // Node header and data
+    output.write((char*)&non_null_header, sizeof(non_null_header));
+    output.write((char*)&root->data, sizeof(root->data));
+    output.write((char*)&root->frequency, sizeof(root->frequency));
+
+    WriteTree(root->leftChild);
+    WriteTree(root->rightChild);
+}
+
+void HuffmanProcessor::Decompress(char* input_filename)
+{
+    input = ifstream(input_filename, ios::binary);
+    root = new Node();
+
+    ReadTree(root);
+}
+
+void HuffmanProcessor::ReadTree(Node*& root)
+{
+    streampos len;
+    input.seekg(0, ios::end);
+    len = input.tellg();
+    input.seekg(0, ios::beg);
+
+    short start_id;
+    input.read((char*)&start_id, 2);
+
+    RecursiveReadTree(root, len);
+}
+
+void HuffmanProcessor::RecursiveReadTree(Node*& root, streampos end_of_tree)
+{
+    if(input.tellg() == end_of_tree)
+    {
+        return;
+    }
+
+
+    unsigned char data_token;
+    int frequency_token;
+    short header;
+
+    input.read((char*)&header, 2);
+
+    // Null node
+    if(header == 0x1ABAB)
+    {
+        return;
+    }
+
+    input.read((char*)&data_token, 1);
+    input.read((char*)&frequency_token, 4);
+
+    root = new Node();
+    root->data = data_token;
+    root->frequency = frequency_token;
+
+    RecursiveReadTree(root->leftChild, end_of_tree);
+    RecursiveReadTree(root->rightChild, end_of_tree);
 }

@@ -6,8 +6,53 @@
 #include <set>
 #include <queue>
 #include <limits.h>
+#include <bitset>
 using namespace std;
 
+
+class Node
+{
+public:
+	unsigned char data;
+	int frequency;
+	Node* leftChild;
+	Node* rightChild;
+
+	Node(unsigned char data, int frequency)
+		: data(data),
+			frequency(frequency),
+			leftChild(NULL),
+			rightChild(NULL)
+	{}
+
+	Node()
+		: frequency(0),
+			leftChild(NULL),
+			rightChild(NULL)
+	{}
+
+	Node& operator=(const Node& rhs)
+	{
+		if(this != &rhs)
+		{
+			data = rhs.data;
+			frequency = rhs.frequency;
+			leftChild = rhs.leftChild;
+			rightChild = rhs.rightChild;
+		}
+		return *this;
+	}
+
+	friend ostream& operator<<(ostream& stream, Node& node);
+
+	void SetChildren(Node* left, Node* right)
+	{
+		leftChild = left;
+		rightChild = right;
+	}
+
+
+};
 
 class HuffmanProcessor
 {
@@ -45,6 +90,7 @@ public:
 	}
 
 	void Compress(char* output_filename = NULL);
+    void Decompress(char* input_filename);
 private:
     std::map<unsigned char, int> frequencies;
     std::map<unsigned char, std::vector<bool>> encoding;
@@ -53,6 +99,7 @@ private:
     const char* output_file;
 	int size;
 	ofstream output;
+    ifstream input;
 	unsigned char* buffer;
 
 	// There are only 256 possible values for unsigned
@@ -63,49 +110,7 @@ private:
 
 	// Private Class for intneral tree data structure
 	// Leaves have null children
-	class Node
-	{
-	public:
-		unsigned char data;
-		int frequency;
-		Node* leftChild;
-		Node* rightChild;
 
-		Node(unsigned char data, int frequency)
-			: data(data),
-			  frequency(frequency),
-			  leftChild(NULL),
-			  rightChild(NULL)
-		{}
-
-		Node()
-			: frequency(0),
-			  leftChild(NULL),
-			  rightChild(NULL)
-		{}
-
-		Node& operator=(const Node& rhs)
-		{
-			if(this != &rhs)
-			{
-				data = rhs.data;
-				frequency = rhs.frequency;
-				leftChild = rhs.leftChild;
-				rightChild = rhs.rightChild;
-			}
-			return *this;
-		}
-
-		friend ostream& operator<<(ostream& stream, Node& node);
-
-		void SetChildren(Node* left, Node* right)
-		{
-			leftChild = left;
-			rightChild = right;
-		}
-
-
-	};
 
 	// Node sorting functor
 	struct functorClass {
@@ -149,5 +154,9 @@ private:
     void PrintTreeInOrder(Node* root);
 
     void WriteToFile();
+    void WriteTree(Node* root);
+
+    void ReadTree(Node*& root);
+    void RecursiveReadTree(Node*& root, streampos end_of_tree);
 };
 
