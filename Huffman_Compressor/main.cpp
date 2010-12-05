@@ -2,7 +2,7 @@
 
 int main(int argc, char* argv[])
 {
-	HuffmanProcessor huffy("blinn_fail.jpg");
-	huffy.Compress("new_blinn_fail.jpg");
+	HuffmanProcessor huffy("shakespeare.txt");
+	huffy.Compress("new_shakespeare.txt");
 	return 0;
 }

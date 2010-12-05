@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <set>
+#include <queue>
 #include <limits.h>
 using namespace std;
 
@@ -43,9 +44,13 @@ public:
 		output.close();
 	}
 
-	void Compress(const char* output_filename = NULL);
+	void Compress(char* output_filename = NULL);
 private:
+    std::map<unsigned char, int> frequencies;
+    std::map<unsigned char, std::vector<bool>> encoding;
+
 	const char* filename;
+    const char* output_file;
 	int size;
 	ofstream output;
 	unsigned char* buffer;
@@ -104,13 +109,15 @@ private:
 
 	// Node sorting functor
 	struct functorClass {
-		bool operator() (Node* i, Node* j) { return i->frequency < j->frequency; }
-		bool operator() (Node i, Node j) { return i.frequency < j.frequency; }
+		bool operator() (Node* i, Node* j) { return i->frequency > j->frequency; }
+		bool operator() (Node i, Node j) { return i.frequency > j.frequency; }
 	} NodeComparator;
 
 	// The intermediate representation of the nodes in the tree
 	// before processing / arrangement / sorting
-	vector<Node*> nodes;
+	//vector<Node*> nodes;
+
+    std::priority_queue<Node*, vector<Node*>, functorClass> nodes;
 
 	// The buffer to hold bits until we have enough to 
 	// make a full byte.
@@ -123,7 +130,9 @@ private:
 	// Traversing the frequency tree in depth-first order, we write paths from
 	// the root as strings of bits where 0 represents a left branch and 1
 	// represents a right branch.
-	void AccumulateBytes(Node* root);
+	void AccumulateBytes(Node* root, std::vector<bool>& accumulator);
+
+    unsigned char TraversalHelper(Node* root);
 
 	// Write bytes in the appropriate size to the file
 	void WriteBit(bool bit);
@@ -133,5 +142,12 @@ private:
 
 	// Write the tree as a file header
 	void WriteHeader();
+
+    // The root of the binary tree of frequencies
+    Node* root;
+
+    void PrintTreeInOrder(Node* root);
+
+    void WriteToFile();
 };
 
